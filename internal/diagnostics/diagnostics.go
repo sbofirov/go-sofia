@@ -1,5 +1,11 @@
 package diagnostics
 
+import (
+  "fmt"
+  "github.com/gorilla/mux"
+  "net/http"
+)
+
 func NewDiagnostics() *mux.Router {
   router := mux.NewRouter()
   router.HandleFunc("/healtz", healtz)

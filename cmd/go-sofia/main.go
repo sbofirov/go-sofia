@@ -3,8 +3,9 @@ package main
 import (
   "log"
   "net/http"
-  "github.com/gorilla/mux"
   "fmt"
+
+  "github.com/gorilla/mux"
   "github.com/sbofirov/go-sofia/internal/diagnostics"
 )
 
