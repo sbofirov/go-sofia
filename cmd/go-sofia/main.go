@@ -26,12 +26,14 @@ func main() {
     router := mux.NewRouter()
     router.HandleFunc("/", handleRequest)
     go func () {
+      log.Print("Application server is preparing to handle connections...")
       err := http.ListenAndServe(":"+blPort, router)
       if err != nil {
         log.Fatal(err)
       }
     }()
 
+    log.Print("Diagnostics server is preparing to handle connections...")
     diagnostics := diagnostics.NewDiagnostics()
     err := http.ListenAndServe(":"+diagnosticsPort, diagnostics)
     if err != nil {
@@ -42,5 +44,6 @@ func main() {
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
+  log.Print("Hello handler was called")
   fmt.Fprintf(w, http.StatusText(http.StatusOK))
 }
