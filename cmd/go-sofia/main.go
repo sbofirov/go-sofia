@@ -1,42 +1,48 @@
 package main
 
 import (
-  "log"
-  "net/http"
-  "fmt"
-  "os"
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-  "github.com/gorilla/mux"
-  "github.com/sbofirov/go-sofia/internal/diagnostics"
+	"github.com/gorilla/mux"
+	"github.com/sbofirov/go-sofia/internal/diagnostics"
 )
 
 type serverConf struct {
-  port string
-  router http.Handler
-  name string
+	port   string
+	router http.Handler
+	name   string
 }
 
+var counter = 0
+
 func main() {
-    log.Print("Starting the application...")
+	log.Print("Starting the application...")
 
-    blPort := os.Getenv("PORT")
-    if (len(blPort) == 0) {
-      log.Fatal("BL port must be set!")
-    }
+	blPort := os.Getenv("PORT")
+	if len(blPort) == 0 {
+		log.Fatal("BL port must be set!")
+	}
 
-    diagnosticsPort := os.Getenv("DIAG_PORT")
-    if (len(diagnosticsPort) == 0) {
-      log.Fatal("Diagnostics port must be set!")
-    }
+	diagnosticsPort := os.Getenv("DIAG_PORT")
+	if len(diagnosticsPort) == 0 {
+		log.Fatal("Diagnostics port must be set!")
+	}
 
-    router := mux.NewRouter()
-    router.HandleFunc("/", handleRequest)
+	router := mux.NewRouter()
+	router.HandleFunc("/", handleRequest)
 
-    diagnostics := diagnostics.NewDiagnostics()
+	diagnostics := diagnostics.NewDiagnostics()
 
-    possibleErrors := make(chan error, 2)
+	possibleErrors := make(chan error, 2)
 
-    servers := []serverConf{
+	configurations := []serverConf{
 		{
 			port:   blPort,
 			router: router,
@@ -50,27 +56,46 @@ func main() {
 		},
 	}
 
-  for _, c := range servers {
-  go func(conf serverConf) {
-    log.Printf("The %s is preparing to handle connections...", conf.name)
-    server := &http.Server{
-      Addr:    ":" + conf.port,
-      Handler: conf.router,
-    }
-    err := server.ListenAndServe()
-    if err != nil {
-      possibleErrors <- err
-    }
-  }(c)
-}
+	servers := make([]*http.Server, 2)
 
-select {
-case err := <-possibleErrors:
-  log.Fatal(err)
-}
+	for i, c := range configurations {
+		go func(conf serverConf, i int) {
+			log.Printf("The %s is preparing to handle connections...", conf.name)
+			servers[i] = &http.Server{
+				Addr:    ":" + conf.port,
+				Handler: conf.router,
+			}
+			err := servers[i].ListenAndServe()
+			if err != nil {
+				possibleErrors <- err
+			}
+		}(c, i)
+	}
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case err := <-possibleErrors:
+		log.Printf("Got an error: %v", err)
+	case sig := <-interrupt:
+		log.Printf("Recevied the signal %v", sig)
+	}
+
+	for _, s := range servers {
+		timeout := 5 * time.Second
+		log.Printf("Shutdown with timeout: %s", timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		err := s.Shutdown(ctx)
+		if err != nil {
+			fmt.Println(err)
+		}
+		log.Printf("Server gracefully stopped")
+	}
 }
 
 func handleRequest(w http.ResponseWriter, r *http.Request) {
-  log.Print("Hello handler was called")
-  fmt.Fprintf(w, http.StatusText(http.StatusOK))
+	counter++
+	log.Printf("Hello handler was called %d times", counter)
+	fmt.Fprintf(w, http.StatusText(http.StatusOK))
 }
