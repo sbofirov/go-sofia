@@ -14,6 +14,7 @@ RELEASE?=0.0.1
 COMMIT?=$(shell git rev-parse --short HEAD)
 BUILD_TIME?=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
+
 # Parameters to push images and release app to Kubernetes or try it with Docker
 REGISTRY?=docker.io/webdeva
 NAMESPACE?=sbofirov
