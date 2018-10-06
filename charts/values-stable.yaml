@@ -34,7 +34,7 @@ workflow: prod
 image:
   ## Docker Registry/Hub image name and tag
   ##
-  registry: docker.io/webdeva
+  registry: docker.io/sbofirov
   name: go-sofia
   tag: 0.0.1
 
